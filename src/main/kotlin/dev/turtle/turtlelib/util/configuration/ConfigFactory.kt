@@ -11,5 +11,5 @@ class ConfigFactory(internal val turtle: TurtlePlugin) {
         }
     }
     fun get(configName: String): Configuration? { return this.registeredConfigs[configName] }
-    fun new(configName: String): Configuration { return Configuration.new(configName, this) }
+    fun new(configName: String): Configuration { return Configuration(configName, this) }
 }

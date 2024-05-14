@@ -7,14 +7,11 @@ import java.nio.file.Paths
 import com.typesafe.config.ConfigFactory as TSConfigFactory
 import com.typesafe.config.Config as TSConfig
 
-class Configuration private constructor(val name: String, private val factory: ConfigFactory) {
-    companion object {
-        fun new(name: String, configFactory: ConfigFactory): Configuration {
-            val configuration = Configuration(name, configFactory)
-            configFactory.registeredConfigs[name] = configuration
-            return configuration
-        }
+open class Configuration(val name: String, private val factory: ConfigFactory) {
+    init {
+        factory.registeredConfigs[name] = this
     }
+    open fun onConfigurationLoad() {}
     private var tsConfig: TSConfig = TSConfigFactory.empty()
     private var configFolder: String = "" //todo
     private val m = factory.turtle.messageFactory
@@ -31,6 +28,7 @@ class Configuration private constructor(val name: String, private val factory: C
         }
         this.tsConfig = TSConfigFactory.parseFile(configFile)
         val version = this.getStringSafe("version") ?:"UNKNOWN"
+        this.onConfigurationLoad()
         m.newMessage("&2Successfully &7loaded &b$name.conf&7 v:&b$version&7.").enablePrefix().send()
     }
     fun hasAllKeys(requiredKeys: Array<String>): Boolean {
