@@ -29,7 +29,7 @@ class MessageFactory(private val turtle: TurtlePlugin) {
         fun placeholder(key: String, value: Any): StylizedMessage {this.placeholders[key.uppercase()] = value; return this}
         fun placeholders(hashMap: HashMap<String, Any>): StylizedMessage {this.placeholders.putAll(hashMap); return this}
         fun disablePlaceholders(value: Boolean=true): StylizedMessage {this.disablePlaceholders = value; return this}
-        fun send(messageTarget: CommandSender = Bukkit.getServer().consoleSender) {
+        fun text(messageTarget: CommandSender = Bukkit.getServer().consoleSender): String {
             val formattedText = StringBuilder(
                 if (configKey) {
                     //TODO: Get target's language
@@ -42,12 +42,15 @@ class MessageFactory(private val turtle: TurtlePlugin) {
                 factory.prefix?.let{ formattedText.insert(0, it) }
             if (suffixEnabled)
                 factory.suffix?.let{ formattedText.append(it) }
-            messageTarget.sendMessage(ChatColor.translateAlternateColorCodes('&',
+            return ChatColor.translateAlternateColorCodes('&',
                 if (disablePlaceholders)
                     formattedText.toString()
                 else
                     factory.run { formattedText.toString().parsePlaceholders(placeholders) }
-            ))
+            )
+        }
+        fun send(messageTarget: CommandSender = Bukkit.getServer().consoleSender) {
+            messageTarget.sendMessage(this.text(messageTarget))
         }
     }
     fun String.parsePlaceholders(hashMap: HashMap<String, Any>? = null): String {
