@@ -14,8 +14,7 @@ abstract class TurtlePlugin: JavaPlugin() {
     var pluginFolder = pluginName
     var pluginFolderPath = "plugins"
     val pluginVersion: String = this.description.version
-
-    fun getPluginFolder(): File { return File(File(pluginFolderPath, pluginFolder), pluginName) }
+    fun getPluginFolder(): File { return File(pluginFolderPath, pluginFolder) }
     fun setPluginFolder(folderName: String, folderPath: String) {
         this.pluginFolder = folderName
         this.pluginFolderPath = folderPath
