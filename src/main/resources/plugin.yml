@@ -1,0 +1,4 @@
+name: '${pluginName}'
+version: '${version}'
+main: dev.turtle.turtlelib.TurtleLib
+api-version: '1.20'
