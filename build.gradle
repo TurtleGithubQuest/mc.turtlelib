@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'dev.turtle'
-version = '0.0.1'
+version = '0.0.2'
 pluginName = "TurtleLib"
 
 repositories {
@@ -71,6 +71,7 @@ tasks {
     var buildDirectoryPath = project.hasProperty("buildDirectory") ? project.property("buildDirectory") : "build/libs"
     var buildDirectory = file(buildDirectoryPath)
     jar {
+        archiveFileName = "$pluginName-${version}.jar"
         destinationDirectory = file(buildDirectory)
     }
     shadowJar {
