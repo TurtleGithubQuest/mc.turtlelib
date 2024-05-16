@@ -7,7 +7,7 @@ class TurtleLib: TurtlePlugin() {
         lateinit var turtleLib: JavaPlugin private set
         lateinit var libVersion: String private set
     }
-    override fun onEnable() {
+    override fun onStart() {
         turtleLib = this
         libVersion = this.description.version
         this.messageFactory

@@ -19,10 +19,20 @@ abstract class TurtlePlugin: JavaPlugin() {
         this.pluginFolder = folderName
         this.pluginFolderPath = folderPath
     }
+    abstract fun onStart()
+    override fun onEnable() {
+        try {
+            this.onStart()
+            super.onEnable()
+        } catch (_: TurtlePluginDisabled) {}
+    }
     fun disable(text: String = "&cDisabling $pluginName") {
         val pm = Bukkit.getPluginManager()
-        messageFactory.newMessage(text).enablePrefix().send()
+        val msg = messageFactory.newMessage(text).enablePrefix()
+        msg.send()
         this.isEnabled = false
         pm.getPlugin(pluginName)?.let { pm.disablePlugin(it) }
+        throw(TurtlePluginDisabled(msg.text()))
     }
 }
+class TurtlePluginDisabled(message: String): Exception(message)

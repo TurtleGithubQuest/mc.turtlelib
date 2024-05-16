@@ -1,5 +1,6 @@
 package dev.turtle.turtlelib.util.configuration
 
+import com.typesafe.config.ConfigException
 import com.typesafe.config.ConfigRenderOptions
 import java.io.File
 import java.nio.file.Files
@@ -40,7 +41,16 @@ open class Configuration(val name: String, private val factory: ConfigFactory) {
         }
         return true
     }
-    fun getSection(name: String): TSConfig? { return tsConfig.getConfig(name) ?: null }
+    fun getSection(name: String): TSConfig? {
+        try {
+            return tsConfig.getConfig(name)
+        } catch(ex: ConfigException.Missing) {
+            m.newMessage("&7Section '&c$name&7' not found in &e${this@Configuration.name}&7.").enablePrefix().send()
+        } catch(ex: ConfigException.WrongType) {
+            m.newMessage("&7Section '&c$name&7' is not an object.").enablePrefix().send()
+        }
+        return null
+    }
     fun save() {
         val options = ConfigRenderOptions.concise()
             .setComments(true)
