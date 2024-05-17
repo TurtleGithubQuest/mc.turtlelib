@@ -25,8 +25,8 @@ jobs:
           cache: 'gradle'
       - run: chmod +x gradlew
 
-      - name: Build jar
-        run: ./gradlew --no-daemon -q clean jar
+      #- name: Build jar //todo: build both, slim and fat jar
+      #  run: ./gradlew --no-daemon -q clean jar
 
       - name: Build fat jar
         run: ./gradlew --no-daemon -q clean shadowJar

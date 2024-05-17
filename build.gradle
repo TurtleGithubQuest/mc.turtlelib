@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'dev.turtle'
-version = '0.0.3b'
+version = '0.0.4'
 pluginName = "TurtleLib"
 
 repositories {
