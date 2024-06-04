@@ -143,12 +143,13 @@ abstract class TurtleSubCommand(val subCommandName: String, turtleCommand: Turtl
                         Player::class -> Bukkit.getPlayer(v) ?: run {
                             errorMessagePath = "command.player-not-found"; null
                         }
-
-                        String::class -> v.ifBlank { errorMessagePath = "$configPath.invalid-type"; null }
+                        String::class -> v.ifBlank { errorMessagePath = "command.$commandName.invalid-type"; null }
                         Int::class -> v.toIntOrNull() ?: run {
-                            errorMessagePath = "$configPath.invalid-type"; null
+                            errorMessagePath = "command.$commandName.invalid-type"; null
                         }
-
+                        Number::class, Double::class -> v.toDoubleOrNull() ?: run {
+                            errorMessagePath = "command.$commandName.invalid-type"; null
+                        }
                         else -> null
                     }
                 }
