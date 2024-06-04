@@ -23,8 +23,10 @@ class MessageFactory(private val turtle: TurtlePlugin) {
     private var suffix: String? = null
     private var alignTextEnabled = false
     fun newMessage(text: String): StylizedMessage { return StylizedMessage(text, this) }
-    fun setPrefix(value: String): MessageFactory {this.prefix = value; return this }
-    fun setSuffix(value: String): MessageFactory {this.suffix = value; return this }
+    fun setPrefix(value: String) = apply { this.prefix = value }
+    fun setSuffix(value: String) = apply { this.suffix = value }
+    fun getPrefix(): String? = this.prefix
+    fun getSuffix(): String? = this.suffix
     fun setChatWidthPixels(value: Int): MessageFactory {this.chatWidthPixels=value; return this }
     fun setSelectedLanguages(value: HashMap<String, String>): MessageFactory {this.selectedLanguages = value; return this }
     /**
