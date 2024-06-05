@@ -8,6 +8,7 @@ import org.bukkit.ChatColor
 import org.bukkit.ChatColor.COLOR_CHAR
 import org.bukkit.command.CommandSender
 import java.awt.Color
+import java.text.SimpleDateFormat
 import java.util.*
 
 class MessageFactory(private val turtle: TurtlePlugin) {
@@ -19,6 +20,8 @@ class MessageFactory(private val turtle: TurtlePlugin) {
     var selectedLanguages = hashMapOf<String, String>()
     var defaultLanguage = "en_US"
     var chatWidthPixels = 320
+    var dateFormatShort = SimpleDateFormat("dd/MM/yy HH:mm")
+    var dateFormatLong = SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     private var prefix: String? = null
     private var suffix: String? = null
     private var alignTextEnabled = false
@@ -29,6 +32,10 @@ class MessageFactory(private val turtle: TurtlePlugin) {
     fun getSuffix(): String? = this.suffix
     fun setChatWidthPixels(value: Int): MessageFactory {this.chatWidthPixels=value; return this }
     fun setSelectedLanguages(value: HashMap<String, String>): MessageFactory {this.selectedLanguages = value; return this }
+    fun setDateFormat(short: SimpleDateFormat?, long: SimpleDateFormat?) = apply {
+        short?.let { dateFormatShort = it }
+        long?.let { dateFormatLong = it }
+    }
     /**
      * (Dis)allow default alignment for messages produced by this factory.
     */
@@ -192,7 +199,13 @@ class MessageFactory(private val turtle: TurtlePlugin) {
     fun String.parsePlaceholders(hashMap: HashMap<String, Any>? = null): String {
         var temp = this.replace("\\%", "\u0000")
         val regex = Regex("%(.*?)%")
-        val placeholders = hashMap?.let { placeholderMap + it } ?: placeholderMap
+        val placeholders = (hashMap?.let { placeholderMap + it } ?: placeholderMap).toMutableMap()
+        placeholders["UNIX"]?.let {
+            it.toString().toLongOrNull()?.let { timestamp ->
+                placeholders["TIME_SHORT"] = dateFormatShort.format(timestamp*1000)
+                placeholders["TIME_LONG"] = dateFormatLong.format(timestamp*1000)
+            }
+        }
         temp = regex.replace(temp) { matchResult ->
             val placeholder = matchResult.groupValues[1].uppercase()
             if (placeholders.containsKey(placeholder)) {
