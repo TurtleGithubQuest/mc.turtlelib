@@ -1,6 +1,7 @@
 package dev.turtle.turtlelib.util.configuration
 
 import com.typesafe.config.ConfigException
+import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config.ConfigRenderOptions
 import java.io.File
 import java.nio.file.Files
@@ -28,8 +29,18 @@ open class Configuration(val name: String, private val factory: ConfigFactory) {
             configFile = File(pluginFolder, "$name.conf")
         }
         this.tsConfig = TSConfigFactory.parseFile(configFile)
-        val version = this.getStringSafe("version") ?:"UNKNOWN"
-        this.onConfigurationLoad()
+        val version = this.getStringOrNull("version") ?:"UNKNOWN"
+        try {
+            this.onConfigurationLoad()
+        } catch(ex: ConfigException) {
+            when (ex) {
+                is Missing -> {
+                    ex.printStackTrace()
+                    factory.turtle.disable("&7Plugin &cdisabled&7: ${ex.message}.")
+                }
+                else -> throw(ex)
+            }
+        }
         m.newMessage("&2Successfully &7loaded &b$name.conf&7 v:&b$version&7.").enablePrefix().send()
     }
     fun hasAllKeys(requiredKeys: Array<String>): Boolean {
@@ -66,7 +77,7 @@ open class Configuration(val name: String, private val factory: ConfigFactory) {
     /**
      * Allow safe retrieval of values which may be null
      */
-    fun getStringSafe(path: String): String? {
+    fun getStringOrNull(path: String): String? {
        return if (tsConfig.hasPathOrNull(path)) {
            if (tsConfig.hasPath(path)) {
                try {

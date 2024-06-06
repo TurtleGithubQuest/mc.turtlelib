@@ -1,5 +1,6 @@
 package dev.turtle.turtlelib
 
+import dev.turtle.turtlelib.gui.TurtleGUI
 import dev.turtle.turtlelib.util.MessageFactory
 import dev.turtle.turtlelib.util.configuration.ConfigFactory
 import org.bukkit.Bukkit
@@ -13,11 +14,16 @@ abstract class TurtlePlugin: JavaPlugin() {
     val pluginName = plugin.name
     var pluginFolder = pluginName
     var pluginFolderPath = "plugins"
+    val guis = mutableMapOf<String, TurtleGUI>()
     val pluginVersion: String = this.description.version
     fun getPluginFolder(): File { return File(pluginFolderPath, pluginFolder) }
     fun setPluginFolder(folderName: String, folderPath: String) {
         this.pluginFolder = folderName
         this.pluginFolderPath = folderPath
+    }
+    fun reload() {
+        guis.clear()
+        onStart()
     }
     abstract fun onStart()
     override fun onEnable() {

@@ -3,10 +3,12 @@ package dev.turtle.turtlelib.util
 import dev.turtle.turtlelib.TurtlePlugin
 import dev.turtle.turtlelib.util.Font.characterLengthPx
 import dev.turtle.turtlelib.util.Font.stringLengthPx
+import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.ChatColor.COLOR_CHAR
 import org.bukkit.command.CommandSender
+import org.bukkit.entity.Player
 import java.awt.Color
 import java.text.SimpleDateFormat
 import java.util.*
@@ -48,6 +50,8 @@ class MessageFactory(private val turtle: TurtlePlugin) {
         private var selectedLanguage = factory.defaultLanguage
         private var placeholders = HashMap<String, Any>()
         private var disablePlaceholders = false
+        private var disableTextComponents = false
+        fun enableTextComponents(value: Boolean) = apply {this.disableTextComponents = !value }
         fun enablePrefix(value: Boolean=true): StylizedMessage { this.prefixEnabled = value; return this }
         fun enableSuffix(value: Boolean=true): StylizedMessage { this.suffixEnabled = value; return this }
         fun enableAlignment(value: Boolean=true): StylizedMessage { this.alignTextEnabled = value; return this }
@@ -183,17 +187,21 @@ class MessageFactory(private val turtle: TurtlePlugin) {
             if (suffixEnabled)
                 factory.suffix?.let{ formattedText.append(it) }
             val text =
-                (if (disablePlaceholders)
-                    formattedText.toString()
-                else
-                    factory.run { formattedText.toString().parsePlaceholders(placeholders) }).bukkolorize()
-
+                (if (disablePlaceholders) formattedText.toString()
+                else factory.run { formattedText.toString().parsePlaceholders(placeholders) }
+                ).bukkolorize()
             return if (this.alignTextEnabled) {
                 alignMessage(text)
             } else text
         }
         fun send(messageTarget: CommandSender = factory.console) {
-            messageTarget.sendMessage(this.text(messageTarget))
+            when (messageTarget) {
+                is Player -> {
+                    val components = factory.run { this@StylizedMessage.text(messageTarget).parseTextComponents() }
+                    components.forEach { component -> messageTarget.spigot().sendMessage(component) }
+                }
+                else -> messageTarget.sendMessage(this.text(messageTarget))
+            }
         }
     }
     fun String.parsePlaceholders(hashMap: HashMap<String, Any>? = null): String {
@@ -216,6 +224,33 @@ class MessageFactory(private val turtle: TurtlePlugin) {
             }
         }
         return temp.replace("\u0000", "%")
+    }
+    fun String.parseTextComponents(): MutableList<TextComponent> {
+        val regex = """TEXTCOMPONENT\(%(.*?)%\)""".toRegex()
+        val parts: MutableList<TextComponent> = mutableListOf()
+        var output = this
+        val componentRegex = """(FONT)(\(([^\)]*)\))""".toRegex()
+        output = regex.replace(output) { matchResult ->
+            val text = matchResult.groupValues[1]
+            val textComponent = TextComponent(text)
+            textComponent.text = componentRegex.replace(text) { componentResult ->
+                val (type, _, value) = componentResult.destructured
+                when (type) {
+                    "FONT" -> {
+                        textComponent.font = value.lowercase()
+                        ""
+                    }
+                    else -> componentResult.value
+                }
+            }
+            parts.add(textComponent)
+            val split = output.split(regex, 3)
+            if (split.size == 2) {
+                parts.add(TextComponent(split.last()))
+                ""
+            } else split.drop(0).joinToString()
+        }
+        return parts
     }
     /**
      * Try to load the language config for the commandSender. If it's not available, we try
