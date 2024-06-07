@@ -250,6 +250,8 @@ class MessageFactory(private val turtle: TurtlePlugin) {
                 ""
             } else split.drop(0).joinToString()
         }
+        if (parts.isEmpty())
+            parts.add(TextComponent(output))
         return parts
     }
     /**
