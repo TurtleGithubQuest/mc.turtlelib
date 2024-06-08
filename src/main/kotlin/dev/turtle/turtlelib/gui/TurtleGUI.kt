@@ -8,14 +8,12 @@ import com.typesafe.config.ConfigObject
 import com.typesafe.config.Config as TypeSafeConfig
 import dev.turtle.turtlelib.TurtleLib.Companion.protocol
 import dev.turtle.turtlelib.TurtlePlugin
+import dev.turtle.turtlelib.event.gui.GUIClickEvent
 import dev.turtle.turtlelib.util.CIMutableMap
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
-import org.bukkit.event.Listener
-import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import java.lang.reflect.InvocationTargetException
@@ -54,11 +52,10 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
                     }
                 }
             }
-            if (gui.getBoolean("global")) {
+            if (gui.getBoolean("global"))
                 globalInventory = createInventory()
-            }
         }
-        turtle.eventListeners.add(InventoryListener().EventListener())
+        InventoryListener()
         turtle.guis[name] = this@TurtleGUI
     }
     fun getViewer(uuid: UUID): TurtleGUIPlayer? = this@TurtleGUI.viewers[uuid]
@@ -72,19 +69,24 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
         return player?.let { p->
             val inv = getViewer(p.uniqueId)?.getInventory()?:createInventory()
             p.openInventory(inv)
-            sendTitlePacket(p)
+            sendUpdatedInventory(p)
+            true
         }?: false
     }
-    fun sendTitlePacket(player: Player?): Boolean {
+    fun sendUpdatedInventory(player: Player?): Boolean {
         return player?.let { p ->
             val viewer = getViewer(p.uniqueId)?: return false
-            val windowId = viewer.windowId?: return false
+            val windowId = viewer.windowId
             val owPacket = PacketContainer(PacketType.Play.Server.OPEN_WINDOW)
             owPacket.integers.write(0, windowId)
             owPacket.structures.write(0, viewer.windowType)
             owPacket.chatComponents.write(0, ComponentConverter.fromBaseComponent(*stylizedTitle.toTypedArray()))
+            val wiPacket = PacketContainer(PacketType.Play.Server.WINDOW_ITEMS)
+            wiPacket.integers.write(0, windowId)
+            wiPacket.itemListModifier.write(0, p.openInventory.topInventory.contents.filterNotNull())
             try {
                 protocol.sendServerPacket(p, owPacket)
+                protocol.sendServerPacket(p, wiPacket)
                 true
             } catch (ex: InvocationTargetException) {
                 ex.printStackTrace()
@@ -96,11 +98,13 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
         init {
             protocol.addPacketListener(open())
             protocol.addPacketListener(close())
+            protocol.addPacketListener(click())
         }
         private fun open(): PacketListener {
             return object: PacketAdapter(turtle, ListenerPriority.HIGH, PacketType.Play.Server.OPEN_WINDOW) {
                 override fun onPacketSending(e: PacketEvent) {
-                    val windowId = e.packet.integers.read(0).takeIf { it != 0 }
+                    // The inventory with ID 0 belongs to a player, we don't manage that.
+                    val windowId = e.packet.integers.read(0).takeIf { it != 0 }?: return
                     e.packet.structures.readSafely(0).takeIf { it is InternalStructure }?.let { internalStructure ->
                         this@TurtleGUI.viewers[e.player.uniqueId] = TurtleGUIPlayer(windowId, internalStructure, e.player.openInventory.topInventory)
                     }
@@ -114,16 +118,19 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
                 }
             }
         }
-        inner class EventListener: Listener {
-            @EventHandler
-            fun onClick(e: InventoryClickEvent) { //todo: Check inventory
-                println("Clicked "+e.slot)
-                this@TurtleGUI.onClick(e)
+        private fun click(): PacketListener {
+            return object: PacketAdapter(turtle, ListenerPriority.HIGH, PacketType.Play.Client.WINDOW_CLICK) {
+                override fun onPacketReceiving(e: PacketEvent) {
+                    val viewer = getViewer(e.player.uniqueId)?: return
+                    val eventWindowId = e.packet.integers.read(0).takeIf { it != 0 }?: return
+                    if (viewer.windowId != eventWindowId) return
+                    this@TurtleGUI.onClick(GUIClickEvent(this@TurtleGUI, viewer, e))
+                }
             }
         }
     }
-    fun onClick(e: InventoryClickEvent) = this@TurtleGUI.content[e.slot]?.onClick(e)?:false
-    inner class TurtleGUIPlayer(val windowId: Int?, val windowType: InternalStructure, var window: Inventory) {
+    fun onClick(e: GUIClickEvent) = this@TurtleGUI.content[e.click.slot]?.onClick(e)?:false
+    inner class TurtleGUIPlayer(val windowId: Int, val windowType: InternalStructure, var window: Inventory) {
         fun getInventory(): Inventory = globalInventory?: window
     }
     inner class InventorySlot(var index: Int) {
@@ -144,7 +151,7 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
             }
         }
         fun addActions(value: Array<SlotAction>) = apply { actions += value }
-        fun onClick(e: InventoryClickEvent): Boolean {
+        fun onClick(e: GUIClickEvent): Boolean {
             actions.forEach { action ->
                 action.onRun(this)
             }
@@ -152,7 +159,7 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
         }
     }
     abstract inner class SlotBehavior(val name: String) {
-        open var handleClick: (InventorySlot, InventoryClickEvent) -> Boolean = { slot, e -> false }
+        open var handleClick: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e -> false }
         init { this@TurtleGUI.behaviors[name] = this@SlotBehavior }
     }
     abstract inner class SlotAction(val name: String) {

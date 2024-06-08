@@ -33,7 +33,8 @@ abstract class TurtlePlugin: JavaPlugin() {
         this.onStart()
         HandlerList.unregisterAll(plugin)
         eventListeners.forEach { Bukkit.getPluginManager().registerEvents(it, plugin)}
-        messageFactory.newMessage("&7Registered &e${eventListeners.size}&7 event listeners.").enablePrefix().send()
+        if (eventListeners.size > 0)
+            messageFactory.newMessage("&7Registered &e${eventListeners.size}&7 event listeners.").enablePrefix().send()
     }
     abstract fun onStart()
     override fun onEnable() {
