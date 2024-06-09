@@ -5,15 +5,16 @@ import dev.turtle.turtlelib.gui.TurtleGUI
 import org.bukkit.inventory.Inventory
 import dev.turtle.turtlelib.event.gui.InventoryClickKeyCategory.*
 import dev.turtle.turtlelib.event.gui.InventoryClickType.*
+import org.bukkit.entity.Player
 
-class GUIClickEvent(val gui: TurtleGUI, val viewer: TurtleGUI.TurtleGUIPlayer, val event: PacketEvent) {
-    fun setCancelled(value: Boolean=true) = apply {event.isCancelled=value}
+class GUIClickEvent(val gui: TurtleGUI, val viewer: TurtleGUI.TurtleGUIPlayer, val player: Player, val packetEvent: PacketEvent) {
+    fun setCancelled(value: Boolean=true) = apply {packetEvent.isCancelled=value}
     val click = Click()
     inner class Click {
         val inventory: Inventory = viewer.getInventory()
-        val slot = event.packet.integers.read(2)
-        val button = event.packet.integers.readSafely(3)
-        val type = event.packet.modifier.readSafely(4).toString()
+        val slot = packetEvent.packet.integers.read(2)
+        val button = packetEvent.packet.integers.readSafely(3)
+        val type = packetEvent.packet.modifier.readSafely(4).toString()
         // maybe add try-catch, idk
         val mode = InventoryClickType.valueOf(type)
         val key = InventoryClickKey.valueOf(mode, button)

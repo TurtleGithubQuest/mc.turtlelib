@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import com.typesafe.config.ConfigFactory as TSConfigFactory
 import com.typesafe.config.Config as TSConfig
+import dev.turtle.turtlelib.util.configuration.ConfigUtils.getStringOrNull
 
 open class Configuration(val name: String, private val factory: ConfigFactory) {
     init {
@@ -77,19 +78,5 @@ open class Configuration(val name: String, private val factory: ConfigFactory) {
     /**
      * Allow safe retrieval of values which may be null
      */
-    fun getStringOrNull(path: String): String? {
-       return if (tsConfig.hasPathOrNull(path)) {
-           if (tsConfig.hasPath(path)) {
-               try {
-                   tsConfig.getString(path)
-               } catch (e: com.typesafe.config.ConfigException.WrongType) {
-                    m.newMessage("&7Wrong value type: &c${e.message}.").enablePrefix().send()
-                   path
-               }
-           } else { null }
-       } else {
-           m.newMessage("&7String '&c$path&7' not found in config.").enablePrefix().send()
-           null
-       }
-    }
+    fun getStringOrNull(path: String): String? = tsConfig.getStringOrNull(path).getValue(m)
 }

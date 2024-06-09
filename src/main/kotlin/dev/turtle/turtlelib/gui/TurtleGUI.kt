@@ -4,6 +4,7 @@ import com.comphenix.protocol.PacketType
 import com.comphenix.protocol.events.*
 import com.comphenix.protocol.wrappers.ComponentConverter
 import com.typesafe.config.Config
+import com.typesafe.config.ConfigException
 import com.typesafe.config.ConfigObject
 import com.typesafe.config.Config as TypeSafeConfig
 import dev.turtle.turtlelib.TurtleLib.Companion.protocol
@@ -46,7 +47,7 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
             gui.getConfig("inventory").let { inv ->
                 inv.root().forEach { (indexStr, value) ->
                     (value as com.typesafe.config.ConfigObject).toConfig().let { slotConfig ->
-                        indexStr.toIntOrNull()?.let { index ->
+                        (if (indexStr.lowercase() == "default") "-1" else indexStr).toIntOrNull()?.let { index ->
                             content[index] = InventorySlot(index).register(slotConfig)
                         }?: turtle.messageFactory.newMessage("&dTurtleGUI&7: Invalid index '&e$indexStr&7' in &e$name&7.").send()
                     }
@@ -83,7 +84,7 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
             owPacket.chatComponents.write(0, ComponentConverter.fromBaseComponent(*stylizedTitle.toTypedArray()))
             val wiPacket = PacketContainer(PacketType.Play.Server.WINDOW_ITEMS)
             wiPacket.integers.write(0, windowId)
-            wiPacket.itemListModifier.write(0, p.openInventory.topInventory.contents.filterNotNull())
+            wiPacket.itemListModifier.write(0, p.openInventory.topInventory.contents.map{ it?:ItemStack(Material.AIR) }) //contents.filterNotNull() removes the item completely, although we need to fill null slots in order to preserve indexes
             try {
                 protocol.sendServerPacket(p, owPacket)
                 protocol.sendServerPacket(p, wiPacket)
@@ -124,12 +125,18 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
                     val viewer = getViewer(e.player.uniqueId)?: return
                     val eventWindowId = e.packet.integers.read(0).takeIf { it != 0 }?: return
                     if (viewer.windowId != eventWindowId) return
-                    this@TurtleGUI.onClick(GUIClickEvent(this@TurtleGUI, viewer, e))
+                    this@TurtleGUI.onClick(GUIClickEvent(this@TurtleGUI, viewer, e.player, e))
                 }
             }
         }
     }
-    fun onClick(e: GUIClickEvent) = this@TurtleGUI.content[e.click.slot]?.onClick(e)?:false
+    fun onClick(e: GUIClickEvent): Boolean {
+        val slot = e.click.slot
+        return if (slot < e.gui.size)
+            (this@TurtleGUI.content[slot]?:this@TurtleGUI.content[-1])?.onClick(e) ?: false
+        else false
+    }
+
     inner class TurtleGUIPlayer(val windowId: Int, val windowType: InternalStructure, var window: Inventory) {
         fun getInventory(): Inventory = globalInventory?: window
     }
@@ -138,23 +145,35 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
         lateinit var behavior: SlotBehavior
         var material: Material = Material.STONE
         fun prepareSlot(inventory: Inventory) {
-            inventory.setItem(index, ItemStack(material))
+            if (index == -1) //default slot
+                inventory.forEachIndexed{ index, itemStack ->
+                    itemStack?:inventory.setItem(index, ItemStack(material))
+                }
+            else
+                inventory.setItem(index, ItemStack(material))
         }
         fun addActions(value: Array<SlotAction>) = apply { actions += value }
-        fun onClick(e: GUIClickEvent): Boolean {
-            actions.forEach { action ->
-                action.onRun(this)
-            }
-            return behavior.handleClick(this, e)
-        }
+        fun onClick(e: GUIClickEvent): Boolean = behavior.handleClick(this, e) && actions.none { action -> action.onRun(this, e) }
         fun register(cfg: Config) = apply {
             val behaviorName = cfg.getString("behavior")
             this@TurtleGUI.behaviors[behaviorName]?.let { behavior ->
-                this@InventorySlot.behavior = behavior
+                try {
+                    this@InventorySlot.behavior = behavior.load(this@TurtleGUI, this@InventorySlot, cfg.withoutPath("actions"))
+                } catch (ex: ConfigException) {
+                    val message = "&dTurtleGUI&7: &cFailed&7 to load slot behavior '&e$behaviorName&7'. ${ex.message}"
+                    turtle.messageFactory.newMessage(message).send()
+                }
             }?: turtle.disable("&dTurtleGUI&7: Slot behavior '&e$behaviorName&7' &cnot found &7in GUI '&e$name&7'.")
             cfg.getList("actions").forEach {
-                val actionType = (it as ConfigObject).toConfig().getString("type")
-                this@TurtleGUI.actions[actionType]?.let { action -> this@InventorySlot.actions += action}
+                val actionConfig = (it as ConfigObject).toConfig()
+                val actionType = actionConfig.getString("type")
+                try {
+                    this@TurtleGUI.actions[actionType]?.let { action -> this@InventorySlot.actions += action.load(this@TurtleGUI, this@InventorySlot, actionConfig)
+                    }?: turtle.messageFactory.newMessage("&dTurtleGUI&7: Slot action '&e$actionType&7' &cnot found &7in GUI '&e$name&7'.").send()
+                } catch (ex: ConfigException) {
+                    val message = "&dTurtleGUI&7: &cFailed&7 to load slot action '&e$actionType&7'. ${ex.message}"
+                    turtle.messageFactory.newMessage(message).send()
+                }
             }
         }
     }
