@@ -53,7 +53,7 @@ enum class InventoryClickKey(val mode: InventoryClickType, val button: Int, vara
     DOUBLE_CLICK(PICKUP_ALL, 0, MOUSE),
     DOUBLE_CLICK_REVERSE(PICKUP_ALL, 1, MOUSE, ILLEGAL); /**Impossible in vanilla clients*/
     val categories = setOf(*categories)
-    fun hasCategory(value: InventoryClickKeyCategory): Boolean = value in categories
+    infix fun hasCategory(value: InventoryClickKeyCategory): Boolean = value in categories
 
     companion object {
         private val map = entries.associateBy { it.mode to it.button }

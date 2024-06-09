@@ -28,8 +28,8 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
     val viewers = hashMapOf<UUID, TurtleGUIPlayer>()
     var globalInventory: Inventory? = null
     val content = hashMapOf<Int, InventorySlot>()
-    val behaviors = CIMutableMap<TurtleGUI.SlotBehavior>()
-    val actions = CIMutableMap<TurtleGUI.SlotAction>()
+    val behaviors = CIMutableMap<SlotBehavior>()
+    val actions = CIMutableMap<SlotAction>()
     fun loadFromConfig(langSection: TypeSafeConfig, guiSection: TypeSafeConfig) {
         langSection.let { gui ->
             title = gui.getString("title")
@@ -45,9 +45,9 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
             }
             gui.getConfig("inventory").let { inv ->
                 inv.root().forEach { (indexStr, value) ->
-                    (value as com.typesafe.config.ConfigObject).toConfig().let { slot ->
+                    (value as com.typesafe.config.ConfigObject).toConfig().let { slotConfig ->
                         indexStr.toIntOrNull()?.let { index ->
-                            content[index] = InventorySlot(index).loadFromConfig(slot)
+                            content[index] = InventorySlot(index).register(slotConfig)
                         }?: turtle.messageFactory.newMessage("&dTurtleGUI&7: Invalid index '&e$indexStr&7' in &e$name&7.").send()
                     }
                 }
@@ -140,7 +140,14 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
         fun prepareSlot(inventory: Inventory) {
             inventory.setItem(index, ItemStack(material))
         }
-        fun loadFromConfig(cfg: Config) = apply {
+        fun addActions(value: Array<SlotAction>) = apply { actions += value }
+        fun onClick(e: GUIClickEvent): Boolean {
+            actions.forEach { action ->
+                action.onRun(this)
+            }
+            return behavior.handleClick(this, e)
+        }
+        fun register(cfg: Config) = apply {
             val behaviorName = cfg.getString("behavior")
             this@TurtleGUI.behaviors[behaviorName]?.let { behavior ->
                 this@InventorySlot.behavior = behavior
@@ -150,20 +157,5 @@ abstract class TurtleGUI(val name: String, val turtle: TurtlePlugin) {
                 this@TurtleGUI.actions[actionType]?.let { action -> this@InventorySlot.actions += action}
             }
         }
-        fun addActions(value: Array<SlotAction>) = apply { actions += value }
-        fun onClick(e: GUIClickEvent): Boolean {
-            actions.forEach { action ->
-                action.onRun(this)
-            }
-            return behavior.handleClick(this, e)
-        }
-    }
-    abstract inner class SlotBehavior(val name: String) {
-        open var handleClick: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e -> false }
-        init { this@TurtleGUI.behaviors[name] = this@SlotBehavior }
-    }
-    abstract inner class SlotAction(val name: String) {
-        open var onRun: (InventorySlot) -> Boolean = { false }
-        init { this@TurtleGUI.actions[name] = this@SlotAction }
     }
 }

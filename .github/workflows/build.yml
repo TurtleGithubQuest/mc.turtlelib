@@ -1,4 +1,4 @@
-name: Create Release and Publish Jar
+name: Build jar(s) and publish release.
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
   workflow_call:
     outputs:
       version:
-        description: Built version
         value: ${{ jobs.build.outputs.version }}
 jobs:
   build:
@@ -18,30 +17,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
+
       - run: chmod +x gradlew
 
-      - name: Build jar #todo: build both, slim and fat jar
-        run: ./gradlew --no-daemon -q clean jar
-
-      - name: Build fat jar
-        run: ./gradlew --no-daemon -q clean shadowJar
+      - name: Build jar
+        run: ./gradlew --no-daemon -q clean jar shadowJar
 
       - name: Get the version
         id: version
         run: echo "VERSION=$(./gradlew -q projectVersion)" >> $GITHUB_ENV
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Release ${{ env.VERSION }}
-          tag_name: ${{ env.VERSION }}
-          files: build/libs/*.jar
-          make_latest: true
+      - name: Create release
+        run: |
+          FILES=$(ls build/libs/*.jar | tr '\n' ' ')
+          PRERELEASE_FLAG=""
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+              PRERELEASE_FLAG="--prerelease --latest=false"
+          fi
+          gh release create $PRERELEASE_FLAG ${{ env.VERSION }} $FILES
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
