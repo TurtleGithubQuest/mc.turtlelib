@@ -40,7 +40,7 @@ jobs:
           PRERELEASE_FLAG=""
           if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
               PRERELEASE_FLAG="--prerelease --latest=false"
-              gh release delete ${{ env.VERSION }} --confirm || true
+              gh release delete ${{ env.VERSION }} --yes || true
           fi
           gh release create $PRERELEASE_FLAG ${{ env.VERSION }} $FILES
         env:
