@@ -1,7 +1,7 @@
 package dev.turtle.turtlelib
 
-import dev.turtle.turtlelib.gui.TurtleGUI
-import dev.turtle.turtlelib.util.CIMutableMap
+import dev.turtle.turtlelib.gui.GUIFactory
+import dev.turtle.turtlelib.util.ItemFactory
 import dev.turtle.turtlelib.util.MessageFactory
 import dev.turtle.turtlelib.util.configuration.ConfigFactory
 import org.bukkit.Bukkit
@@ -11,15 +11,16 @@ import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
 abstract class TurtlePlugin: JavaPlugin() {
-    var configFactory: ConfigFactory = ConfigFactory(this)
-    val messageFactory = MessageFactory(this)
+    lateinit var configFactory: ConfigFactory
+    lateinit var messageFactory: MessageFactory
+    lateinit var itemFactory: ItemFactory
+    lateinit var guiFactory: GUIFactory
     var plugin = this
         private set
     var pluginName = this.name
         private set
     var pluginFolder = pluginName
     var pluginFolderPath = "plugins"
-    val guis = CIMutableMap<TurtleGUI>()
     val pluginVersion: String = this.description.version
     val eventListeners = mutableListOf<Listener>()
     fun getPluginFolder(): File { return File(pluginFolderPath, pluginFolder) }
@@ -28,8 +29,11 @@ abstract class TurtlePlugin: JavaPlugin() {
         this.pluginFolderPath = folderPath
     }
     fun reload() {
+        configFactory = ConfigFactory(this)
+        messageFactory = MessageFactory(this)
+        itemFactory = ItemFactory(this)
+        guiFactory = GUIFactory(this)
         eventListeners.clear()
-        guis.clear()
         this.onStart()
         HandlerList.unregisterAll(plugin)
         eventListeners.forEach { Bukkit.getPluginManager().registerEvents(it, plugin)}
