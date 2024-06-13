@@ -39,7 +39,7 @@ class GUIFactory(internal val turtle: TurtlePlugin) {
                     if (gui.getBoolean("global"))
                         globalInventory = createInventory()
                 }
-                onRegister()
+                onRegister(this, cfg)
             }
         }
     }

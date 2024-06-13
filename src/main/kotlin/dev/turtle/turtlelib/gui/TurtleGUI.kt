@@ -12,16 +12,17 @@ import dev.turtle.turtlelib.event.gui.GUIClickEvent
 import dev.turtle.turtlelib.util.CIMutableMap
 import dev.turtle.turtlelib.util.Item
 import dev.turtle.turtlelib.util.configuration.ConfigUtils.getListOrNull
-import dev.turtle.turtlelib.util.configuration.ConfigUtils.getStringOrNull
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
+import org.bukkit.scheduler.BukkitRunnable
 import java.lang.reflect.InvocationTargetException
 import java.util.*
-import com.typesafe.config.Config as TypeSafeConfig
+import java.util.concurrent.CompletableFuture
 
 data class InstancedGUI(
     var name: String, var behavior: GUIBehavior
@@ -33,22 +34,38 @@ data class InstancedGUI(
     val viewRequests = hashSetOf<UUID>()
     var globalInventory: Inventory? = null
     val content = hashMapOf<Int, InventorySlot>()
-    fun onRegister(): Boolean { InventoryListener(); return behavior.onGUIRegister() }
+    fun onRegister(instance: InstancedGUI, cfg: Config): Boolean { InventoryListener(); return behavior.onRegister(instance, cfg) }
     fun getViewer(uuid: UUID): TurtleGUIPlayer? = this.viewers[uuid]
     fun openFor(playerName: String): Boolean = openFor(Bukkit.getPlayer(playerName))
+
     fun openFor(player: Player?): Boolean {
-        return player?.let { p ->
-            viewRequests.add(p.uniqueId)
-            val inv = getViewer(p.uniqueId)?.getInventory()?:createInventory()
-            p.openInventory(inv)
-            sendUpdatedInventory(p)
-            true
-        }?: false
+        if (player == null) return false
+        if (!behavior.beforeOpen(this, player)) return false
+        Bukkit.getScheduler().runTask(behavior.turtle, Runnable {
+            closeInventoryAsync(player)
+            viewRequests.add(player.uniqueId)
+            val inv = getViewer(player.uniqueId)?.getInventory() ?: createInventory()
+            player.openInventory(inv)?.let {
+                sendUpdatedInventory(player)
+            }
+        })
+        return true
     }
     fun createInventory(): Inventory {
         val inv = Bukkit.createInventory(null, size, "")
         content.forEach { (_, slot) -> slot.prepareSlot(inv) }
         return inv
+    }
+    fun closeInventoryAsync(player: Player?) {
+        player?.let { p ->
+            val cwPacket = PacketContainer(PacketType.Play.Server.CLOSE_WINDOW)
+            val viewer = getViewer(p.uniqueId)?: return
+            val windowId = viewer.windowId
+            cwPacket.integers.write(0, windowId)
+            try {
+                protocol.sendServerPacket(p, cwPacket)
+            } catch (ex: InvocationTargetException) { ex.printStackTrace() }
+        }
     }
     fun sendUpdatedInventory(player: Player?): Boolean {
         return player?.let { p ->
@@ -62,9 +79,11 @@ data class InstancedGUI(
             wiPacket.integers.write(0, windowId)
             wiPacket.itemListModifier.write(0, p.openInventory.topInventory.contents.map{ it?:ItemStack(Material.AIR) }) //contents.filterNotNull() removes the item completely, although we need to fill null slots in order to preserve indexes
             try {
-                protocol.sendServerPacket(p, owPacket)
-                protocol.sendServerPacket(p, wiPacket)
-                p.updateInventory() //Maybe also send packet using ProtocolLib instead of calling this method.
+                Bukkit.getScheduler().runTask(behavior.turtle, Runnable {
+                    protocol.sendServerPacket(p, owPacket)
+                    protocol.sendServerPacket(p, wiPacket)
+                    p.updateInventory() //Maybe also send packet using ProtocolLib instead of calling this method.
+                })
                 true
             } catch (ex: InvocationTargetException) {
                 ex.printStackTrace()
@@ -85,9 +104,11 @@ data class InstancedGUI(
                     if (!viewRequests.remove(e.player.uniqueId)) return
                     // The inventory with ID 0 belongs to a player, we don't manage that.
                     val windowId = e.packet.integers.read(0).takeIf { it != 0 }?: return
-                    e.packet.structures.readSafely(0).takeIf { it is InternalStructure }?.let { internalStructure ->
-                        this@InstancedGUI.viewers[e.player.uniqueId] = TurtleGUIPlayer(windowId, internalStructure, e.player.openInventory.topInventory)
-                    }
+                    if (this@InstancedGUI.behavior.onOpen(this@InstancedGUI))
+                        e.packet.structures.readSafely(0).takeIf { it is InternalStructure }?.let { internalStructure ->
+                            this@InstancedGUI.viewers[e.player.uniqueId] = TurtleGUIPlayer(windowId, internalStructure, e.player.openInventory.topInventory)
+                        }
+                    else e.isCancelled = true
                 }
             }
         }
@@ -132,7 +153,7 @@ data class InstancedGUI(
                 inventory.setItem(index, item.itemStack)
         }
         fun addActions(value: Array<SlotAction>) = apply { actions += value }
-        fun onClick(e: GUIClickEvent): Boolean = behavior.handleClick(this, e) && actions.none { action -> action.onRun(this, e) }
+        fun onClick(e: GUIClickEvent): Boolean = behavior.onClick(this, e) && actions.none { action -> action.onClick(this, e) }
         fun register(cfg: Config) = apply {
             val behaviorName = cfg.getString("behavior")
             val m = this@InstancedGUI.behavior.turtle.messageFactory
@@ -143,8 +164,8 @@ data class InstancedGUI(
                     val message = "&dTurtleGUI&7: &cFailed&7 to load slot behavior '&e$behaviorName&7'. ${ex.message}"
                     m.newMessage(message).send()
                 }
-            }?: this@InstancedGUI.behavior.turtle.disable("&dTurtleGUI&7: Slot behavior '&e$behaviorName&7' &cnot found &7in GUI '&e${behavior.name}&7'.")
-            cfg.getListOrNull<ConfigObject>("actions").getValue()?.forEach {
+            }?: this@InstancedGUI.behavior.turtle.disable("&dTurtleGUI&7: Slot behavior '&e$behaviorName&7' is &cnot registered &7in GUI '&e${this@InstancedGUI.behavior.name}&7'.")
+            cfg.getListOrNull<ConfigObject>("actions").getValue(m)?.forEach {
                 val actionConfig = it.toConfig()
                 val actionType = actionConfig.getString("type")
                 try {
@@ -165,5 +186,7 @@ abstract class GUIBehavior(val name: String, val turtle: TurtlePlugin) {
     var size: Int? = null
     val behaviors = CIMutableMap<SlotBehavior>()
     val actions = CIMutableMap<SlotAction>()
-    abstract fun onGUIRegister(): Boolean
+    open fun onRegister(instance: InstancedGUI, cfg: Config): Boolean = true
+    open fun beforeOpen(instance: InstancedGUI, player: Player): Boolean = true
+    open fun onOpen(instance: InstancedGUI): Boolean = true
 }

@@ -1,4 +1,4 @@
-package dev.turtle.turtlelib.template.gui.action
+package dev.turtle.turtlelib.open.gui.action
 
 import com.typesafe.config.Config
 import dev.turtle.turtlelib.event.gui.GUIClickEvent
@@ -14,7 +14,7 @@ class CommandAction: SlotAction(name="command") {
     var executor: String = ""
         private set
 
-    override var onRun: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e ->
+    override var onClick: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e ->
         val turtle = e.gui.behavior.turtle
         val cs = if (executor=="SERVER") Bukkit.getConsoleSender() else e.player
         val command = turtle.messageFactory.newMessage(command).placeholder("player", e.player.name).text()

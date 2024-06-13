@@ -42,7 +42,7 @@ object ConfigUtils {
     @Suppress("UNCHECKED_CAST")
     fun <V>TSConfig.getListOrNull(path: String): ConfigResult<List<V>?> {
         return try {
-            Ok(this.getStringList(path).map { it as V })
+            Ok(this.getObjectList(path).map { it as V })
         } catch (ex: ConfigException) {
             Err(null, ConfigError.PATH_NOT_FOUND, ex.message?:"$path not found")
         } catch (ex: TypeCastException) {

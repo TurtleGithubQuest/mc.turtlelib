@@ -1,4 +1,4 @@
-package dev.turtle.turtlelib.template.gui.action
+package dev.turtle.turtlelib.open.gui.action
 
 import com.typesafe.config.Config
 import dev.turtle.turtlelib.event.gui.GUIClickEvent
@@ -10,7 +10,7 @@ class OpenWindowAction: SlotAction(name="opengui") {
     var targetWindow: InstancedGUI? = null
         private set
 
-    override var onRun: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e ->
+    override var onClick: (InventorySlot, GUIClickEvent) -> Boolean = { slot, e ->
         targetWindow?.openFor(e.player)
         true
     }

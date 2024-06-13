@@ -206,7 +206,7 @@ class MessageFactory(private val turtle: TurtlePlugin) {
     }
     fun String.parsePlaceholders(hashMap: HashMap<String, Any>? = null): String {
         var temp = this.replace("\\%", "\u0000")
-        val regex = Regex("%(.*?)%")
+        val regex = Regex("(?<!TEXTCOMPONENT\\()%(.*?)%")
         val placeholders = (hashMap?.let { placeholderMap + it } ?: placeholderMap).toMutableMap()
         placeholders["UNIX"]?.let {
             it.toString().toLongOrNull()?.let { timestamp ->
