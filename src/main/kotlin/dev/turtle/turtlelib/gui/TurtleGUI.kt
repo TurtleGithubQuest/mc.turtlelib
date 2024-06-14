@@ -9,20 +9,17 @@ import com.typesafe.config.ConfigObject
 import dev.turtle.turtlelib.TurtleLib.Companion.protocol
 import dev.turtle.turtlelib.TurtlePlugin
 import dev.turtle.turtlelib.event.gui.GUIClickEvent
-import dev.turtle.turtlelib.util.CIMutableMap
+import dev.turtle.turtlelib.util.wrapper.CIMutableMap
 import dev.turtle.turtlelib.util.Item
 import dev.turtle.turtlelib.util.configuration.ConfigUtils.getListOrNull
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
-import org.bukkit.scheduler.BukkitRunnable
 import java.lang.reflect.InvocationTargetException
 import java.util.*
-import java.util.concurrent.CompletableFuture
 
 data class InstancedGUI(
     var name: String, var behavior: GUIBehavior

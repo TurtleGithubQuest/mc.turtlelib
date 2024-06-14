@@ -2,7 +2,7 @@ package dev.turtle.turtlelib.gui
 
 import com.typesafe.config.Config
 import dev.turtle.turtlelib.TurtlePlugin
-import dev.turtle.turtlelib.util.CIMutableMap
+import dev.turtle.turtlelib.util.wrapper.CIMutableMap
 import dev.turtle.turtlelib.util.configuration.ConfigUtils.getStringOrNull
 
 class GUIFactory(internal val turtle: TurtlePlugin) {

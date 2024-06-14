@@ -1,4 +1,4 @@
-package dev.turtle.turtlelib.util
+package dev.turtle.turtlelib.util.wrapper
 
 /**
 * Case insensitive mutable map.
