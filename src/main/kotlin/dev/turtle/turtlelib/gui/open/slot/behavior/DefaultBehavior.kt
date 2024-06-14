@@ -1,13 +1,11 @@
-package dev.turtle.turtlelib.open.gui.behavior
+package dev.turtle.turtlelib.gui.open.slot.behavior
 
 import com.typesafe.config.Config
 import dev.turtle.turtlelib.event.gui.GUIClickEvent
 import dev.turtle.turtlelib.event.gui.InventoryClickKey
 import dev.turtle.turtlelib.event.gui.InventoryClickKeyCategory
-import dev.turtle.turtlelib.gui.SlotBehavior
-import dev.turtle.turtlelib.gui.InstancedGUI
+import dev.turtle.turtlelib.gui.*
 import dev.turtle.turtlelib.gui.InstancedGUI.InventorySlot
-import dev.turtle.turtlelib.gui.OpenSlotBehavior
 import dev.turtle.turtlelib.util.configuration.ConfigUtils.getBooleanOrNull
 
 open class DefaultBehavior(name: String="default"): OpenSlotBehavior(name) {
