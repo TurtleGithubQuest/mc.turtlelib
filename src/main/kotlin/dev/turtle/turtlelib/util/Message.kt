@@ -92,7 +92,7 @@ class MessageFactory(private val turtle: TurtlePlugin) {
             val spaceTextCenter = spaceText.drop(spaceText.length.floorDiv(2))
             textList.forEach { segment ->
                 result.append(when (segment.alignment) {
-                    Alignment.CENTER -> "$spaceTextCenter${segment.text}"
+                    Alignment.CENTER -> "$spaceTextCenter${segment.text}$spaceTextCenter"
                     Alignment.RIGHT -> "$spaceText${segment.text}"
                     else -> segment.text
                 })

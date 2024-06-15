@@ -3,8 +3,10 @@ package dev.turtle.turtlelib.util.wrapper
 /**
 * Case insensitive mutable map.
 * */
-class CIMutableMap<V>: MutableMap<String, V> {
-    private val map = mutableMapOf<String, V>()
+class CIMutableMap<V>(vararg pairs: Pair<String, V>): MutableMap<String, V> {
+    private val map = mutableMapOf<String, V>().apply {
+        pairs.forEach { (k, v) -> this[k.uppercase()] = v }
+    }
 
     override val entries: MutableSet<MutableMap.MutableEntry<String, V>>
         get() = map.entries

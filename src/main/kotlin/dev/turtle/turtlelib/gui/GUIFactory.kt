@@ -1,9 +1,12 @@
 package dev.turtle.turtlelib.gui
 
 import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import dev.turtle.turtlelib.TurtlePlugin
+import dev.turtle.turtlelib.util.configuration.ConfigUtils.getListOrNull
 import dev.turtle.turtlelib.util.wrapper.CIMutableMap
 import dev.turtle.turtlelib.util.configuration.ConfigUtils.getStringOrNull
+import dev.turtle.turtlelib.util.extension.TryCatch.tryOrNull
 
 class GUIFactory(internal val turtle: TurtlePlugin) {
     val instances = CIMutableMap<InstancedGUI>()
@@ -29,10 +32,31 @@ class GUIFactory(internal val turtle: TurtlePlugin) {
                     }
                     gui.getConfig("inventory").let { inv ->
                         inv.root().forEach { (indexStr, value) ->
-                            (value as com.typesafe.config.ConfigObject).toConfig().let { slotConfig ->
-                                (if (indexStr.lowercase() == "default") "-1" else indexStr).toIntOrNull()?.let { index ->
-                                    content[index] = InventorySlot(index).register(slotConfig)
-                                }?: m.newMessage("&dTurtleGUI&7: Invalid index '&e$indexStr&7' in &e$name&7.").send()
+                            indexStr.toIntOrNull()?.let{ index -> value.tryOrNull{ (it as com.typesafe.config.ConfigObject).toConfig() }
+                                ?.let { slotConfig -> content[index] = InventorySlot(index).register(slotConfig) }
+                            }
+                        }
+                        inv.getListOrNull<HashMap<String, Any>>("fill").getValue()?.let {
+                            for (hashMap in it) {
+                                val fillConfig = ConfigFactory.parseMap(hashMap)
+                                fillConfig.getStringOrNull("parent_slot").getValue()?.let { dataParent ->
+                                    inv.tryOrNull { inv.getConfig(dataParent) }?.let { slotConfig ->
+                                        fillConfig.getListOrNull<Int>("slots").getValue()?.let { slots ->
+                                            slots.forEach { index ->
+                                                if (content[index] == null)
+                                                    content[index] = InventorySlot(index).register(slotConfig)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        inv.tryOrNull{inv.getObject("default")}?.let {
+                            it.tryOrNull{ value -> (value as com.typesafe.config.ConfigObject).toConfig() }?.let { slotConfig ->
+                                 for (i in 0 until size) {
+                                    if (content[i] == null)
+                                        content[i] = InventorySlot(i).register(slotConfig)
+                                }
                             }
                         }
                     }

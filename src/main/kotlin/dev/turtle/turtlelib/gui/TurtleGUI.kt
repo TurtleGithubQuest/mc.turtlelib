@@ -5,6 +5,7 @@ import com.comphenix.protocol.events.*
 import com.comphenix.protocol.wrappers.ComponentConverter
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigException
+import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigObject
 import dev.turtle.turtlelib.TurtleLib.Companion.protocol
 import dev.turtle.turtlelib.TurtlePlugin
@@ -50,7 +51,7 @@ data class InstancedGUI(
     }
     fun createInventory(): Inventory {
         val inv = Bukkit.createInventory(null, size, "")
-        content.forEach { (_, slot) -> slot.prepareSlot(inv) }
+        content.forEach { (_, slot) -> slot.updateSlot(inv) }
         return inv
     }
     fun closeInventoryAsync(player: Player?) {
@@ -134,19 +135,16 @@ data class InstancedGUI(
         /** GUIPlayer's viewed inventory */
         fun getInventory(): Inventory = globalInventory?: window
     }
-    /**
-     * Please note that `index` may not correspond directly to the clicked slot id.
-     * For instance, an `index` value of '-1' might be used to represent a default slot.
-     */
     inner class InventorySlot(var index: Int) {
         var actions: Array<SlotAction> = arrayOf()
         lateinit var behavior: SlotBehavior
         lateinit var item: Item
-        fun prepareSlot(inventory: Inventory) {
-            if (index == -1) //default slot
+        fun updateSlot(inventory: Inventory, force: Boolean = false) {
+            /*if (index == -1) //default slot
                 inventory.forEachIndexed{ index, itemStack ->
                     itemStack?:inventory.setItem(index, item.itemStack) }
-            else
+            else*/
+            if (force || (item.material != Material.AIR && index >= 0 && size > index))
                 inventory.setItem(index, item.itemStack)
         }
         fun addActions(value: Array<SlotAction>) = apply { actions += value }
@@ -162,8 +160,8 @@ data class InstancedGUI(
                     m.newMessage(message).send()
                 }
             }?: this@InstancedGUI.behavior.turtle.disable("&dTurtleGUI&7: Slot behavior '&e$behaviorName&7' is &cnot registered &7in GUI '&e${this@InstancedGUI.behavior.name}&7'.")
-            cfg.getListOrNull<ConfigObject>("actions").getValue(m)?.forEach {
-                val actionConfig = it.toConfig()
+            cfg.getListOrNull<HashMap<String, Any>>("actions").getValue()?.forEach {
+                val actionConfig = ConfigFactory.parseMap(it)
                 val actionType = actionConfig.getString("type")
                 try {
                     this@InstancedGUI.behavior.actions[actionType]?.let { action -> this@InventorySlot.actions += action.load(this@InstancedGUI, this@InventorySlot, actionConfig)

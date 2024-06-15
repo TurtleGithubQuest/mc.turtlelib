@@ -20,33 +20,36 @@ object ConfigUtils {
                Err(null, ConfigError.PATH_NOT_FOUND, "&7String '&c$path&7' not found in config.")
            }
     }
-    fun TSConfig.getBooleanOrNull(path: String): ConfigResult<Boolean?> {
-        return this.getStringOrNull(path).let {
-            when(it) {
-                is Ok -> Ok(it.value.toBoolean())
+    fun <T> TSConfig.getAndTransform(path: String, transformer: (String?) -> T): ConfigResult<T?> {
+        this.getStringOrNull(path).let {
+            return when (it) {
+                is Ok ->
+                    try { Ok(transformer(it.value)) }
+                    catch (ex: NumberFormatException) { Err(null, ConfigError.WRONG_TYPE, ex.message.toString()) }
+                    catch (ex: IllegalArgumentException) { Err(null, ConfigError.WRONG_TYPE, ex.message.toString()) }
                 is Err -> Err(null, it.error, it.message)
             }
         }
     }
+    fun TSConfig.getDoubleOrNull(path: String): ConfigResult<Double?> {
+        return getAndTransform(path) { it?.toDouble() }
+    }
     fun TSConfig.getIntOrNull(path: String): ConfigResult<Int?> {
-        this.getStringOrNull(path).let {
-            val r = when (it) {
-                is Ok ->
-                    try { return Ok(it.value?.toInt())
-                    } catch (ex: NumberFormatException) { Pair(ConfigError.WRONG_TYPE, ex.message) }
-                is Err -> Pair(it.error, it.message)
-            }
-            return Err(null, r.first, r.second?:"")
-        }
+        return getAndTransform(path) { it?.toInt() }
+    }
+    fun TSConfig.getBooleanOrNull(path: String): ConfigResult<Boolean?> {
+        return getAndTransform(path) { it?.toBoolean() }
     }
     @Suppress("UNCHECKED_CAST")
     fun <V>TSConfig.getListOrNull(path: String): ConfigResult<List<V>?> {
         return try {
-            Ok(this.getObjectList(path).map { it as V })
+            Ok(this.getAnyRefList(path).map { it as V })
         } catch (ex: ConfigException) {
             Err(null, ConfigError.PATH_NOT_FOUND, ex.message?:"$path not found")
         } catch (ex: TypeCastException) {
             Err(null, ConfigError.WRONG_TYPE, ex.message?:"Invalid value in list. $path")
+        } catch(ex: ClassCastException) {
+            Err(null, ConfigError.WRONG_TYPE, ex.message?:"Cast failed. $path")
         }
     }
 }

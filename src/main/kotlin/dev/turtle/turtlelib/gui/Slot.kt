@@ -3,6 +3,7 @@ package dev.turtle.turtlelib.gui
 import com.typesafe.config.Config as TSConfig
 import dev.turtle.turtlelib.event.gui.GUIClickEvent
 import dev.turtle.turtlelib.gui.InstancedGUI.InventorySlot
+import dev.turtle.turtlelib.util.wrapper.CIMutableMap
 
 abstract class SlotAction(val name: String) {
     open var onClick: (InventorySlot, GUIClickEvent) -> Boolean = { _, _ -> false }
@@ -11,6 +12,7 @@ abstract class SlotAction(val name: String) {
     fun register(gui: GUIBehavior) { gui.actions[name] = this }
 }
 abstract class SlotBehavior(val name: String) {
+    var placeholders = CIMutableMap<Any>()
     open var onClick: (InventorySlot, GUIClickEvent) -> Boolean = { _, _ -> false }
     abstract fun newInstance(): SlotBehavior
     abstract var load: (InstancedGUI, InventorySlot, TSConfig) -> SlotBehavior
